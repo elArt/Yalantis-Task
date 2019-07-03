@@ -10,12 +10,9 @@ class ImageUpload extends Component {
       image: null,
       url: '',
       progress: 0,
-      urlArray:[]
+      urlArray:[],
+      notRepet: true
     }
-    this.handleChange = this
-      .handleChange
-      .bind(this);
-      this.handleUpload = this.handleUpload.bind(this);
   }
 
 
@@ -23,14 +20,14 @@ class ImageUpload extends Component {
     
     if (e.target.files[0]) {
       const image = e.target.files[0];
-      this.setState(() => ({image}));
-      
-       this.setState({
+      this.setState({
+        image: image,
         progress: 0
-      })
-      
+      });
     }
   }
+
+
   handleUpload = () => {
       const {image} = this.state;
       const uploadTask = storage.ref(`images/${image.name}`).put(image);
@@ -47,39 +44,55 @@ class ImageUpload extends Component {
     () => {
         // complete function ....
         storage.ref('images').child(image.name).getDownloadURL().then(url => {
-            console.log(this.onLoadImage());
-            
-            if(image.name === this.onLoadImage ){
-              return
-            }
-            console.log(image.name);
             this.setState({url});
-            db.collection('pic').add({
-              url: url,
-              name: image.name
-            })
+            
+            
+            db.collection('pic').get().then((snapshot) => {
+              console.log(snapshot.docs);
+              
+              snapshot.docs.map(doc => {
+                  if (image.name === doc.data().name){
+                    console.log('repeat');
+                    this.setState({
+                      notRepet: false
+                    })
+                  }
+
+                  if(this.notRepet){
+                  console.log('notRepeat');
+                    db.collection('pic').add({
+                      url: url,
+                      name: image.name
+                    })
+
+                    this.onLoadImage();
+                  }
+
+                  
+                  
+                  
+                  
+                   return doc.data().name
+                  })
+                });
+
+           
         })
-        this.onLoadImage();
+        this.setState({
+          notRepet: true
+        })
+
     });
   }
   onLoadImage = () => {
     console.log('hello world');
-    let firebaseArray = [];
-
     db.collection('pic').get().then((snapshot) => {
-      firebaseArray = snapshot.docs.map(doc => {
+      this.setState({ urlArray: snapshot.docs.map(doc => {
            console.log(doc.data().url);
            return doc.data().url
           })
+          })
         });
-        
-
-    this.setState({
-        urlArray:firebaseArray
-            })
-
-
-     
   }
 
   render() {
@@ -94,7 +107,6 @@ class ImageUpload extends Component {
     return (
       
       <div style={style}>
-        {this.onLoadImage()}
         <div>
             <progress value={this.state.progress} max="100"/>
             <br/>
@@ -105,11 +117,7 @@ class ImageUpload extends Component {
         <ul style = {{display: 'block', width: '100vw'}}>
               {this.state.urlArray.map(urlImg => <li style = {{listStyle:'none', display: 'inline'}}><img src={urlImg} height = '300px' /></li>
             )}
-        </ul>
-        {
-         this.state.url && <img src={this.state.url} alt="Uploaded images" height="300"/>
-        }
-        
+        </ul>        
         </div>
     )
   }
